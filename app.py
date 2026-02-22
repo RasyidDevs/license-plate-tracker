@@ -118,7 +118,7 @@ if uploaded_files:
         for col, f in zip(cols, batch):
             with col:
                 img = uploaded_file_to_bgr(f)
-                st.image(bgr_to_rgb(img), caption=f"🖼 {f.name}", width="stretch")
+                st.image(bgr_to_rgb(img), caption=f"🖼 {f.name}", use_container_width=True)
     st.divider()
 
 # ─── Analisis Button ───
@@ -155,7 +155,7 @@ if analyze and uploaded_files:
                     total_cars = sum(1 for d in dets if d["car_box"] is not None)
                     total_plates = sum(len(d["plates"]) for d in dets)
 
-                st.image(bgr_to_rgb(annotated), caption=f.name, width="stretch")
+                st.image(bgr_to_rgb(annotated), caption=f.name, use_container_width=True)
                 mc1, mc2 = st.columns(2)
                 mc1.metric("🚗 Cars", total_cars)
                 mc2.metric("🔖 Plates", total_plates)
