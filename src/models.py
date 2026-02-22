@@ -8,25 +8,21 @@ import tempfile
 class YoloModel:
     def __init__(
         self,
-        license_det_model_path: str,
         license_seg_model_path: str,
         car_model_path: str,
         conf_plate: float = 0.5,
         conf_car: float = 0.5,
     ):
-        self.license_det_model_path = license_det_model_path
         self.license_seg_model_path = license_seg_model_path
         self.car_model_path = car_model_path
         self.conf_plate = conf_plate
         self.conf_car = conf_car
         self.car_model = None
-        self.plate_det_model = None
         self.plate_seg_model = None
 
     def load_model(self):
         """Load all YOLO models and store on self."""
         self.car_model = YOLO(self.car_model_path)
-        self.plate_det_model = YOLO(self.license_det_model_path)
         self.plate_seg_model = YOLO(self.license_seg_model_path)
 
     @staticmethod
@@ -43,10 +39,8 @@ class YoloModel:
         w: int, h: int, mode: str
     ) -> List[Dict[str, Any]]:
         """Run plate detection on a ROI and return plate dicts with absolute coords."""
-        plate_model = (
-            self.plate_seg_model if mode == "segmentation" else self.plate_det_model
-        )
-        plate_results = plate_model.predict(roi, conf=self.conf_plate, verbose=False)[0]
+        # Always use segmentation model
+        plate_results = self.plate_seg_model.predict(roi, conf=self.conf_plate, verbose=False)[0]
         plates = []
 
         if plate_results.boxes is None or len(plate_results.boxes) == 0:
@@ -123,7 +117,7 @@ class YoloModel:
     ) -> List[Dict[str, Any]]:
         """
         Detect cars and plates. If no cars found, run plate detection on full image.
-        Returns list of dicts with car_box, car_conf, plates.
+        Returns list of dicts with car_box, car_conf, car_class, plates.
         """
         assert self.car_model is not None, "Call load_model() first"
         h, w = frame_bgr.shape[:2]
@@ -138,17 +132,22 @@ class YoloModel:
         if has_cars:
             car_boxes = r.boxes.xyxy.cpu().numpy()
             car_confs = r.boxes.conf.cpu().numpy()
+            car_classes = r.boxes.cls.cpu().numpy()
 
-            for (x1, y1, x2, y2), cconf in zip(car_boxes, car_confs):
+            for (x1, y1, x2, y2), cconf, car_cls in zip(car_boxes, car_confs, car_classes):
                 x1, y1, x2, y2 = self._clamp_box(x1, y1, x2, y2, w, h)
                 car_roi = frame_bgr[y1:y2, x1:x2]
                 if car_roi.size == 0:
                     continue
 
+                # Get class name from model
+                car_class_name = self.car_model.names.get(int(car_cls), f"Class {int(car_cls)}")
+
                 plates = self._detect_plates_in_roi(car_roi, x1, y1, w, h, mode)
                 out.append({
                     "car_box": (x1, y1, x2, y2),
                     "car_conf": float(cconf),
+                    "car_class": car_class_name,
                     "plates": plates,
                 })
         else:
@@ -158,6 +157,7 @@ class YoloModel:
                 out.append({
                     "car_box": None,
                     "car_conf": 0.0,
+                    "car_class": None,
                     "plates": plates,
                 })
 

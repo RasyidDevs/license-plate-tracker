@@ -48,8 +48,9 @@ def draw_results(
             cx1, cy1, cx2, cy2 = det["car_box"]
             cv2.rectangle(canvas, (cx1, cy1), (cx2, cy2), color, thickness)
 
-            # Car label
-            label = f"Car {det['car_conf']:.0%}"
+            # Car label with class name
+            car_class = det.get("car_class", "Car")
+            label = f"{car_class} {det['car_conf']:.0%}"
             (tw, th_txt), _ = cv2.getTextSize(label, font, font_scale, txt_thick)
             lbl_y = cy1 - 4
             if lbl_y - th_txt < 0:
