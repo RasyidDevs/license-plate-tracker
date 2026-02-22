@@ -1,0 +1,3 @@
+models/license_plate_detector*
+__pycache__/
+images/
